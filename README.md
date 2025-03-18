@@ -10,7 +10,8 @@
 <a href='https://arxiv.org/abs/2408.05966'><img src='https://img.shields.io/badge/ArXiv-2408.05966-red'></a> 
 
 [Zhichao Liao](https://scholar.google.com/citations?user=4eRwbOEAAAAJ&hl=zh-CN&authuser=1)🥕 🐟, [Di Huang](https://di-huang.github.io/)🥕 🐟, [Heming Fang]()🍎 🐟, [Yue Ma]()🥕, [Fengyuan Piao]()🥕 ✉, 
-[Xinghui Li]()🥕 ✉, [Long Zeng]()🥕 ✉, [Pingfa Feng]()🥕 <br/>
+[Xinghui Li]()🥕 ✉, 
+[Long Zeng]()🥕 ✉, [Pingfa Feng]()🥕 <br/>
 
 
 🥕 Tsinghua University  🍎 Zhejiang University
