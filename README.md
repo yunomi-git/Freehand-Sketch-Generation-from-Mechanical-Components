@@ -4,9 +4,19 @@
 
 <div align="center">
 <h2>Freehand Sketch Generation from Mechanical Components </center> <br> <center>(ACM MM 2024)</h2>
+<div align="center">  <img src='static/images/momohuhuhuluobo.jpg' style="height:200px"></img>  </div>
 
 <a href='https://mcfreeskegen.github.io/'><img src='https://img.shields.io/badge/Project-Page-Green'></a>
 <a href='https://arxiv.org/abs/2408.05966'><img src='https://img.shields.io/badge/ArXiv-2408.05966-red'></a> 
+
+[Zhichao Liao](https://scholar.google.com/citations?user=4eRwbOEAAAAJ&hl=zh-CN&authuser=1)🍎 🐟, [Xiaokun Liu]()🥕, [Wenyu Qin]()🥕, [Peixin Xie]()🦋, [Qingyu Li]()🥕, 
+[Qiulin Wang]()🥕, [Pengfei Wan]()🥕, [Di Zhang]()🥕, [Long Zeng]()🍎 ✉, [Pingfa Feng]()🍎<br />
+  
+🍎 Tsinghua University  🥕 Kuaishou Technology  🦋Hunan University of Technology 
+
+🐟 Internship at KwaiVGI, Kuaishou Technology  ✉ Corresponding Author
+
+
 
 [<a href="https://mcfreeskegen.github.io/">Project Website</a>] | [<a href="https://arxiv.org/abs/2408.05966">Paper</a>]
 </div>
