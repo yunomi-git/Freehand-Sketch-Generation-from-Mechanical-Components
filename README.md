@@ -15,11 +15,11 @@
 
 🥕 Tsinghua University  🍎 Zhejiang University
 
-🐟 Co-first authors (equal contribution)  ✉ Corresponding Author
+🐟 Co-first authors (equal contribution)   ✉ Corresponding Author
 
 
-
-[<a href="https://mcfreeskegen.github.io/">Project Website</a>] | [<a href="https://arxiv.org/abs/2408.05966">Paper</a>]
+<!--
+[<a href="https://mcfreeskegen.github.io/">Project Website</a>] | [<a href="https://arxiv.org/abs/2408.05966">Paper</a>] -->
 </div>
 
 ![Framework](images/framework.png)
