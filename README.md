@@ -9,12 +9,13 @@
 <a href='https://mcfreeskegen.github.io/'><img src='https://img.shields.io/badge/Project-Page-Green'></a>
 <a href='https://arxiv.org/abs/2408.05966'><img src='https://img.shields.io/badge/ArXiv-2408.05966-red'></a> 
 
-[Zhichao Liao](https://scholar.google.com/citations?user=4eRwbOEAAAAJ&hl=zh-CN&authuser=1)🍎 🐟, [Xiaokun Liu]()🥕, [Wenyu Qin]()🥕, [Peixin Xie]()🦋, [Qingyu Li]()🥕, 
-[Qiulin Wang]()🥕, [Pengfei Wan]()🥕, [Di Zhang]()🥕, [Long Zeng]()🍎 ✉, [Pingfa Feng]()🍎<br />
-  
-🍎 Tsinghua University  🥕 Kuaishou Technology  🦋Hunan University of Technology 
+[Zhichao Liao](https://scholar.google.com/citations?user=4eRwbOEAAAAJ&hl=zh-CN&authuser=1)🥕 🐟, [Di Huang](https://di-huang.github.io/)🥕 🐟, [Heming Fang]()🍎 🐟, [Yue Ma]()🥕, [Fengyuan Piao]()🥕 ✉, 
+[Xinghui Li]()🥕 ✉, [Long Zeng]()🥕 ✉, [Pingfa Feng]()🥕 <br/>
 
-🐟 Internship at KwaiVGI, Kuaishou Technology  ✉ Corresponding Author
+
+🥕 Tsinghua University  🍎 Zhejiang University
+
+🐟 Co-first authors (equal contribution)  ✉ Corresponding Author
 
 
 
