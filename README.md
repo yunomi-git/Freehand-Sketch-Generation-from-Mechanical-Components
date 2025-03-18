@@ -11,17 +11,18 @@
 
 <br>
 [Zhichao Liao](https://scholar.google.com/citations?user=4eRwbOEAAAAJ&hl=zh-CN&authuser=1)🥕 🐟, [Di Huang](https://di-huang.github.io/)🥕 🐟, [Heming Fang]()🍎 🐟, [Yue Ma]()🥕, [Fengyuan Piao]()🥕 ✉, 
-[Xinghui Li]()🥕 ✉, [Long Zeng]()🥕 ✉, [Pingfa Feng]()🥕 </br>
+[Xinghui Li]()🥕 ✉, [Long Zeng]()🥕 ✉, [Pingfa Feng]()🥕 
 
 
 🥕 Tsinghua University  🍎 Zhejiang University
 
 🐟 Co-first authors (equal contribution)   ✉ Corresponding Author
-
+</br>
+</div>
 
 <!--
 [<a href="https://mcfreeskegen.github.io/">Project Website</a>] | [<a href="https://arxiv.org/abs/2408.05966">Paper</a>] -->
-</div>
+
 
 ![Framework](images/framework.png)
 
