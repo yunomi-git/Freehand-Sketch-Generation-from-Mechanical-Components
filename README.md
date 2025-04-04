@@ -11,7 +11,7 @@
 
 <br>
 
-[Zhichao Liao](https://scholar.google.com/citations?user=4eRwbOEAAAAJ&hl=zh-CN&authuser=1)🥕 🐟, [Di Huang](https://di-huang.github.io/)🥕 🐟, [Heming Fang]()🍎 🐟, [Yue Ma]()🥕, [Fengyuan Piao]()🥕 ✉, 
+[Zhichao Liao](https://lzc-sg.github.io/)🥕 🐟, [Di Huang](https://di-huang.github.io/)🥕 🐟, [Heming Fang]()🍎 🐟, [Yue Ma]()🥕, [Fengyuan Piao]()🥕 ✉, 
 [Xinghui Li]()🥕 ✉, [Long Zeng]()🥕 ✉, [Pingfa Feng]()🥕 
 
 
