@@ -29,7 +29,7 @@ from reportlab.graphics import renderPM
 import numpy as np
 from reportlab.graphics.shapes import Drawing
 from wand.image import Image as WandImage
-
+from multi_proc_queue import MultiProcQueueProcessing, ERROR_STATUS
 import matplotlib.pyplot as plt
 from OCC.Core.STEPControl import STEPControl_Reader
 from OCC.Core.HLRBRep import HLRBRep_Algo, HLRBRep_PolyAlgo
@@ -426,10 +426,10 @@ def points2svg(points, out_path, args):
     min_x, max_x = min(x_values) - 5, max(x_values) + 5
     min_y, max_y = min(y_values) - 5, max(y_values) + 5
 
-    # svg_root = ET.Element('svg', xmlns="http://www.w3.org/2000/svg", version="1.1",
-    #                     width="100%", height="100%", viewBox=f"{min_x} {min_y} {max_x - min_x} {max_y - min_y}")
     svg_root = ET.Element('svg', xmlns="http://www.w3.org/2000/svg", version="1.1",
-                        width=str(int(max_x-min_x)), height=str(int(max_y-min_y)), viewBox=f"{min_x} {min_y} {max_x - min_x} {max_y - min_y}")
+                        width="100%", height="100%", viewBox=f"{min_x} {min_y} {max_x - min_x} {max_y - min_y}")
+    # svg_root = ET.Element('svg', xmlns="http://www.w3.org/2000/svg", version="1.1",
+    #                     width=str(int(max_x-min_x)), height=str(int(max_y-min_y)), viewBox=f"{min_x} {min_y} {max_x - min_x} {max_y - min_y}")
 
 
 
@@ -530,14 +530,13 @@ def my_draw(args, shape_path, out_path):
             length_y = max_y - min_y
         except:
             continue
-
-        # try to scale
-        scale = min((args.width - 10) / length_x, (args.height - 10) / length_y)
-        print(scale)
-
         delta_x = 5 - min_x
         delta_y = 5 - min_y
 
+
+        # try to scale
+        scale = min((args.width - 10) / length_x, (args.height - 10) / length_y)
+        
         points = [[(x + delta_x, y + delta_y) for x, y in sublist] for sublist in points]
         points = [[(x * scale, y * scale) for x, y in sublist] for sublist in points]
 
@@ -652,8 +651,8 @@ def main(args):
 
     # for root, dirs, files in os.walk(args.input_path):
     #     for filename in files:
-    for file_path in folder_manager.file_paths:
-        root = folder_manager.base_path
+    def task(file_path, root_path, args):
+        root = root_path
         filename = file_path.file_name + file_path.extension
         dir = file_path.subfolder_path
         print(root, dir, filename)
@@ -661,7 +660,7 @@ def main(args):
         if not filename.lower().endswith(".step") and \
             not filename.lower().endswith(".stp") and \
             not filename.lower().endswith(".stl"):
-            continue
+            return ERROR_STATUS
 
         classes = get_class_info(dir)
         shape_path = os.path.join(root, dir, filename)
@@ -679,14 +678,52 @@ def main(args):
         out_path = os.path.join(out_folder, prefix_name + "_{}.svg")
 
         if args.continue_task and check_shape_already_done(out_folder):
-            print(f"\n=== {done_count}/{final_total} ===== Skip {shape_path} ==============================\n")
-            continue
+            # print(f"\n=== {done_count}/{final_total} ===== Skip {shape_path} ==============================\n")
+            return 
 
-        print(f"\n=== {done_count}/{final_total} ===== Drawing {shape_path} ======={out_path}=======================\n")
-        done_count += my_draw(args, shape_path, out_path)
+        # print(f"\n=== {done_count}/{final_total} ===== Drawing {shape_path} ======={out_path}=======================\n")
+        my_draw(args, shape_path, out_path)
 
         if args.remove_duplicate:
             remove_duplicate_data(args, out_folder)
+
+    multiproc = MultiProcQueueProcessing(args_global=(folder_manager.base_path, args), task=task, num_workers=16)
+    multiproc.process(process_list=folder_manager.file_paths)
+    # for file_path in folder_manager.file_paths:
+    #     root = folder_manager.base_path
+    #     filename = file_path.file_name + file_path.extension
+    #     dir = file_path.subfolder_path
+    #     print(root, dir, filename)
+
+    #     if not filename.lower().endswith(".step") and \
+    #         not filename.lower().endswith(".stp") and \
+    #         not filename.lower().endswith(".stl"):
+    #         continue
+
+    #     classes = get_class_info(dir)
+    #     shape_path = os.path.join(root, dir, filename)
+    #     shape_name = os.path.splitext(filename)[0]
+        
+    #     # print(args.output_root_path)
+    #     # print(root)
+    #     out_folder = os.path.join(args.output_root_path, dir, shape_name)
+    #     if not os.path.exists(out_folder):
+    #         os.makedirs(out_folder)
+    #     # print(out_folder)
+
+    #     classes.append(shape_name)
+    #     prefix_name = "==".join(classes)
+    #     out_path = os.path.join(out_folder, prefix_name + "_{}.svg")
+
+    #     if args.continue_task and check_shape_already_done(out_folder):
+    #         print(f"\n=== {done_count}/{final_total} ===== Skip {shape_path} ==============================\n")
+    #         continue
+
+    #     print(f"\n=== {done_count}/{final_total} ===== Drawing {shape_path} ======={out_path}=======================\n")
+    #     done_count += my_draw(args, shape_path, out_path)
+
+    #     if args.remove_duplicate:
+    #         remove_duplicate_data(args, out_folder)
 
     done_count = count_image_files(args.output_root_path)
     print(f"\n=== {done_count}/{final_total} === Done!")
