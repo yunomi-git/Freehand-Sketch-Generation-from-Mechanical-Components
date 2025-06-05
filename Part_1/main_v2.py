@@ -24,11 +24,7 @@ from OCC.Core.Interface import Interface_Static
 from OCC.Core.IFSelect import IFSelect_ReturnStatus
 from OCC.Core.ShapeUpgrade import ShapeUpgrade_UnifySameDomain
 from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Defeaturing
-from svglib.svglib import svg2rlg
-from reportlab.graphics import renderPM
 import numpy as np
-from reportlab.graphics.shapes import Drawing
-from wand.image import Image as WandImage
 from multi_proc_queue import MultiProcQueueProcessing, ERROR_STATUS
 import matplotlib.pyplot as plt
 from OCC.Core.STEPControl import STEPControl_Reader
@@ -269,7 +265,7 @@ def extra_processing(image_path, output_path, args):
     new_width = int(object_width * scale_ratio)
     new_height = int(object_height * scale_ratio)
     resized = cropped.resize((new_width, new_height))
-    final_img = Image.new("RGB", (target_size, target_size), "white")
+    final_img = Image.new("RGBA", (target_size, target_size), "white")
     x_offset = (target_size - new_width) // 2
     y_offset = (target_size - new_height) // 2
     final_img.paste(resized, (x_offset, y_offset))
@@ -482,6 +478,7 @@ def convert_svg_to_png_subprocess(svg_path, png_path, args):
         f'''
 import cairosvg
 cairosvg.svg2png(url="{svg_path}", write_to="{png_path}", output_width={args.width}, output_height={args.height})
+
         '''
     ]
     subprocess.run(cmd, check=True)
@@ -497,6 +494,23 @@ def my_draw(args, shape_path, out_path):
     shape = step_reader.Shape()
     # shape = _read_shape_from_step(shape_path)
     done_count = 0
+    from OCC.Core.Bnd import Bnd_Box
+    from OCC.Core.BRepBndLib import brepbndlib
+    from OCC.Core.gp import gp_Trsf, gp_Vec, gp_Pnt
+    from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform
+    try:
+        bbox = Bnd_Box()
+        brepbndlib.Add(shape, bbox)
+        xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
+        max_length = max([zmax - zmin, ymax - ymin, xmax - xmin])
+        # print(max_length)
+        scale_factor = (args.width - 10) / max_length
+        transform = gp_Trsf()
+        transform.SetScale(gp_Pnt(0,0,0), scale_factor) # Scale uniformly from the origin
+        builder = BRepBuilderAPI_Transform(shape, transform)
+        shape = builder.Shape()
+    except:
+        return done_count
     # print("proj list")
 
     for i in range(len(PROJ_LIST)):
@@ -536,7 +550,7 @@ def my_draw(args, shape_path, out_path):
 
         # try to scale
         scale = min((args.width - 10) / length_x, (args.height - 10) / length_y)
-        
+
         points = [[(x + delta_x, y + delta_y) for x, y in sublist] for sublist in points]
         points = [[(x * scale, y * scale) for x, y in sublist] for sublist in points]
 
@@ -545,6 +559,7 @@ def my_draw(args, shape_path, out_path):
         png_file_path = f"{png_base}.png"
 
         convert_svg_to_png_subprocess(out_path_i, png_file_path, args)
+        convert_transparent_png_to_white_background(png_file_path, png_file_path)
         os.remove(out_path_i)
         done_count += 1
         # print("done")
@@ -571,27 +586,29 @@ def main(args):
         for root, dirs, files in os.walk(args.input_path):
             for dir in dirs:
                 dir_path = os.path.join(root, dir)
+                # print(dir_path)
                 if is_image_folder(dir_path):
                     dir_list.append(dir_path)
 
-        for dir_path in tqdm(dir_list):
+        def task(dir_path, args):
             remove_duplicate_data(args, dir_path)
+        multiproc = MultiProcQueueProcessing(args_global=(args,), task=task, num_workers=16)
+        multiproc.process(dir_list)
+        # for dir_path in tqdm(dir_list):
+            # remove_duplicate_data(args, dir_path)
         return
 
     if args.extra_processing_mode:
         file_list = []
-        for root, dirs, files in os.walk(args.input_path):
-            for filename in files:
-                if not filename.lower().endswith((".png", ".jpg", ".jpeg")):
-                    continue
-                parts = os.path.normpath(root).split(os.sep)
-                parts[0] = "out_ep"
-                out_path = os.sep.join(parts)
-                if not os.path.exists(out_path):
-                    os.makedirs(out_path)
-                out_path = os.path.join(out_path, filename)
-                out_path = f"{os.path.splitext(out_path)[0]}.{args.out_format}"
-                file_list.append((os.path.join(root, filename), out_path))
+        folder_manager = DirectoryPathManager(args.input_path, base_unit_is_file=True)
+        for filename in folder_manager.get_files_relative(extension=True):
+            if not filename.lower().endswith((".png", ".jpg", ".jpeg")):
+                continue
+            out_path = args.output_root_path
+            out_path = os.path.join(out_path, filename)
+            paths.mkdir(out_path)
+            out_path = f"{os.path.splitext(out_path)[0]}.{args.out_format}"
+            file_list.append((os.path.join(folder_manager.base_path, filename), out_path))
 
         if args.extra_processing_mode == 3:
             for in_path, out_path in tqdm(file_list):
@@ -626,19 +643,18 @@ def main(args):
 
     if args.viewpoint_selector_mode:
         dir_list = []
-        for root, dirs, files in os.walk(args.input_path):
-            for dir in dirs:
-                dir_path = os.path.join(root, dir)
-                if is_image_folder(dir_path):
-                    dir_list.append(dir_path)
 
-        for dir_path in tqdm(dir_list):
-            selected = viewpoint_selector.select(args, dir_path)
-            parts = os.path.normpath(dir_path).split(os.sep)
-            parts[0] = "out_vs"
-            out_path = os.sep.join(parts)
-            if not os.path.exists(out_path):
-                os.makedirs(out_path)
+        folder_manager = DirectoryPathManager(args.input_path, base_unit_is_file=False)
+        root = folder_manager.base_path
+        for foldername in folder_manager.get_files_relative(extension=True):
+            if is_image_folder(root + foldername):
+                dir_list.append(foldername)
+
+        for foldername in tqdm(dir_list):
+            selected = viewpoint_selector.select(args, root + foldername)
+            out_path = args.output_root_path + foldername
+            paths.mkdir(out_path)
+            
             for file in selected:
                 shutil.copy2(file, out_path)
         return
@@ -655,7 +671,7 @@ def main(args):
         root = root_path
         filename = file_path.file_name + file_path.extension
         dir = file_path.subfolder_path
-        print(root, dir, filename)
+        # print(root, dir, filename)
 
         if not filename.lower().endswith(".step") and \
             not filename.lower().endswith(".stp") and \
@@ -682,8 +698,11 @@ def main(args):
             return 
 
         # print(f"\n=== {done_count}/{final_total} ===== Drawing {shape_path} ======={out_path}=======================\n")
-        my_draw(args, shape_path, out_path)
-
+        try:
+            my_draw(args, shape_path, out_path)
+        except:
+            return ERROR_STATUS
+        
         if args.remove_duplicate:
             remove_duplicate_data(args, out_folder)
 

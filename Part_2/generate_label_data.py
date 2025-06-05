@@ -245,7 +245,8 @@ class DataGenerator(nn.Module):
                     path_dict=path_dict,
                     new_num_strokes=num_strokes,
                     new_width=width,
-                    init_settings=(args.init_mode, args.sam_init_num)
+                    init_settings=(args.init_mode, args.sam_init_num),
+                    log_path=args.output_dir
                 )
             except Exception as err:
                 print(err, curr_image_path)

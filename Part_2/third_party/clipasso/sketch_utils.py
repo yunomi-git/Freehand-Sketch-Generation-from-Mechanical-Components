@@ -293,10 +293,10 @@ def get_u2net(args):
     model_dir = os.path.join("./third_party/U2Net_/saved_models/u2net.pth")
     net = U2NET(3, 1)
     if torch.cuda.is_available() and args.use_gpu:
-        net.load_state_dict(torch.load(model_dir))
+        net.load_state_dict(torch.load(model_dir, weights_only=True))
         net.cuda()
     else:
-        net.load_state_dict(torch.load(model_dir, map_location='cpu'))
+        net.load_state_dict(torch.load(model_dir, map_location='cpu', weights_only=True))
     net.eval()
     return net
 

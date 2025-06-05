@@ -76,7 +76,7 @@ class Painter(torch.nn.Module):
                 self.dino_model = dino_model
         
 
-    def init_image(self, target_im=None, mask=None, stage=0, randomize_colors=False, attn_colors=False, attn_colors_stroke_sigma=-1.0, path_dict=None, return_rgba=False, new_num_strokes=None, new_width=None, init_settings=('lbs', 0)):
+    def init_image(self, target_im=None, mask=None, stage=0, randomize_colors=False, attn_colors=False, attn_colors_stroke_sigma=-1.0, path_dict=None, return_rgba=False, new_num_strokes=None, new_width=None, init_settings=('lbs', 0), log_path=None):
         if new_num_strokes is not None:
             self.num_paths = new_num_strokes
             self.strokes_per_stage = self.num_paths
@@ -154,7 +154,9 @@ class Painter(torch.nn.Module):
         self.inds_normalised = self.inds_normalised.tolist()
 
         # generate logs for stroke init
-        utils.plot_atten(self.attention_map, self.thresh, target_im, np.array(self.inds), "logs/my_data/init.jpg")
+        if log_path is None:
+            log_path = "logs/my_data/"    
+        utils.plot_atten(self.attention_map, self.thresh, target_im, np.array(self.inds), log_path + "init.jpg")
 
         assert(len(self.inds) == len(self.inds_normalised) == inds_init_size)
 
