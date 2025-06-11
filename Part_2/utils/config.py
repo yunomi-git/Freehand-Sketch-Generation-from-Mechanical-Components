@@ -22,7 +22,12 @@ class Config(object):
         return self.__dict__[item]
 
     def __setattr__(self, key, value):
-        self.set_attribute({key:value})
+        # self.set_attribute({key:value})
+        # Allow direct setting during unpickling and initialization
+        if key.startswith('_') or not hasattr(self, '__dict__'):
+            super().__setattr__(key, value)
+        else:
+            self.set_attribute({key: value})
 
     def set_attribute(self, dict_config):
         if dict_config is None:
@@ -74,3 +79,10 @@ class Config(object):
             else:
                 out[key] = config[key]
         return out
+    
+    # Explicit pickle support (optional, but makes it more robust)
+    def __getstate__(self):
+        return self.__dict__.copy()
+    
+    def __setstate__(self, state):
+        self.__dict__.update(state)

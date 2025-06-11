@@ -18,7 +18,7 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
 
 
-def parse_arguments():
+def parse_arguments(argslist=None):
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_root", type=str, default="data", help="dataset root directory")
@@ -124,7 +124,7 @@ def parse_arguments():
 
 
     # set default arguments from parser
-    args_ = vars(parser.parse_known_args()[0])
+    args_ = vars(parser.parse_known_args(args=argslist)[0])
     args = Config.from_dict(args_)
 
     # set base, specified configurations

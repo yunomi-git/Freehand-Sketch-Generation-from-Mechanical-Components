@@ -154,9 +154,9 @@ class Painter(torch.nn.Module):
         self.inds_normalised = self.inds_normalised.tolist()
 
         # generate logs for stroke init
-        if log_path is None:
-            log_path = "logs/my_data/"    
-        utils.plot_atten(self.attention_map, self.thresh, target_im, np.array(self.inds), log_path + "init.jpg")
+        # if log_path is None:
+        #     log_path = "logs/my_data/"    
+        # utils.plot_atten(self.attention_map, self.thresh, target_im, np.array(self.inds), log_path + "init.jpg")
 
         assert(len(self.inds) == len(self.inds_normalised) == inds_init_size)
 
