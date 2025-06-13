@@ -177,7 +177,7 @@ class DataGenerator(nn.Module):
 
     def save_svgs(self, sample_paths, image_path):
         image_path_list = os.path.normpath(image_path).split(os.path.sep)[1:]
-        specific_path = os.path.splitext(os.path.sep.join(image_path_list))[0]
+        specific_path = os.path.splitext(os.path.sep.join(image_path_list[-3:]))[0]
         image_path = os.path.join(self.args.output_dir, 'svgs', specific_path)
         os.makedirs(image_path, exist_ok=True)
 

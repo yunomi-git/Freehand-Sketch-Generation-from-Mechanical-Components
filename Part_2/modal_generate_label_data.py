@@ -342,14 +342,6 @@ class DataGenerator(nn.Module):
             path_dicts.update(batch_path_dicts)
             # mask_areas.update(batch_mask_areas)
 
-            # if self.args.visualize:
-            #     for i, (sample_name, sample_paths) in enumerate(batch_path_dicts.items()):
-            #         sample_image = image[i].detach().cpu().permute(1, 2, 0).numpy()
-            #         sample_paths_to_show = sample_paths['iterations']
-            #         vis_file_name = sample_name + '==' + os.path.splitext(os.path.basename(sample_paths['img_path']))[0]
-            #         self.save_sample_visualization(vis_file_name, sample_image, sample_paths_to_show)
-
-            # if self.args.save_svgs:
             for i, (sample_name, sample_paths) in enumerate(batch_path_dicts.items()):
                 svgs.append({
                     "sample_paths": sample_paths['iterations'],
@@ -375,10 +367,6 @@ class DataGenerator(nn.Module):
 
         return path_dicts, svgs
 
-        # return path_dicts, mask_areas, svgs
-
-
-
 
 def cubic_bezier(p, t):
     p = p.reshape(-1, 4, 1, 2)
@@ -390,9 +378,6 @@ def to_dhms(seconds):
     hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)
     return days, hours, minutes, seconds
-
-
-# def split_indexed_dataset(dataset, split_size):
     
 
 def get_dataloader(args):
@@ -469,15 +454,10 @@ def save_svgs(args, sample_paths, image_path):
 @app.function(image=image, gpu="A100",
               memory=8192,
               cpu=4.0,
-              max_containers=1,
-              timeout=30*60
+              max_containers=10,
+              timeout=60*60
               )
 def generate_guidance_sketches(map_input):
-    # import torch
-    # import pydiffvg
-    # print("torch avail", torch.cuda.is_available())
-    # print("diffvg render function", hasattr(pydiffvg, 'RenderFunction'))
-
     batch = map_input[0]
     args = Config.from_dict(map_input[1])
     data_generator = DataGenerator(args).to(args.device)
@@ -575,15 +555,6 @@ def main(*arglist):
     args.image_scale = args.image_size
     args.color_lr = 0.01
 
-    # args.config_path = "config/my_data.yaml"
-    # args.output_dir = "/root/Projects/CachedDatasets/Freehand/logs/my_data/"
-    # args.data_root = "/root/Projects/CachedDatasets/Freehand/"
-    # args.img_paths = "/root/Projects/CachedDatasets/Freehand/vsm/*/*/*.png"
-    # args.visualize = False
-    # args.save_svgs = True 
-    # args.device = "gpu" 
-    # args.num_strokes = 30
-
     # NUM_SAMPLES = 1000
 
     # desired_num_splits = 10
@@ -602,21 +573,12 @@ def main(*arglist):
     dataloader = get_dataloader(args)
     # print("There are", num_splits, "chunks / splits")
     print('--- batch_size:', args.batch_size)
-    # return
-    # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
-    
+
     os.makedirs(args.output_dir, exist_ok=True)
     os.makedirs(os.path.join(args.output_dir, 'vis'), exist_ok=True)
 
-
     path_dicts = {}
     mask_areas = {}
-
-    # map_inputs = [{
-    #     "dataloader": dataloaders[i],
-    #     "args_dict": Config.extraction_dictionary(args),
-    #     "idx": i
-    # } for i in range(num_splits)]
 
     # for chunk_i in range(num_splits):
     #     dataloader = dataloaders[chunk_i]
@@ -624,16 +586,15 @@ def main(*arglist):
     # print("Chunk ", chunk_i , "/", num_splits)
     print("There are", len(dataloader), "batches in this dataloader")
     print("Rendering batches")
+    # all_batches = list(dataloader)
+    start_from = 450
+    # all_batches = all_batches[start_from:]
 
-    for path_dicts, batch_svgs, batch_i in generate_guidance_sketches.map(list(zip(list(dataloader), itertools.repeat(args_dict)))):
+    for path_dicts, batch_svgs, batch_i in generate_guidance_sketches.map(list(zip(list(dataloader)[start_from:], itertools.repeat(args_dict)))):
         chunk_info = str(batch_i)
         paths.mkdir(args.output_dir)
         with open(os.path.join(args.output_dir, f'path_{chunk_info}.pkl'), 'wb') as file:
             pickle.dump(path_dicts, file)
-
-        # if args.option_mask_image and mask_areas:
-        #     with open(os.path.join(args.output_dir, f'maskareas_seed{args.seed}{chunk_info}.pkl'), 'wb') as file:
-        #         pickle.dump(mask_areas, file)
 
         # path_dicts.update(path_dicts)
         for svg in batch_svgs:
