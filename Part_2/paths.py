@@ -7,7 +7,7 @@ from pathlib import Path
 
 HOME_PATH = os.path.dirname(os.path.abspath(__file__)) + "/"
 RAW_DATASETS_PATH = HOME_PATH + "../Datasets/"
-DATA_PATH = HOME_PATH + "../CachedDatasets/"
+DATA_PATH = HOME_PATH + "../../CachedDatasets/"
 
 def mkdir(path):
     if "." in path:

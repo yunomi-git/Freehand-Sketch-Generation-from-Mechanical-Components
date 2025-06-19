@@ -57,26 +57,33 @@ class Painter(torch.nn.Module):
         self.strokes_counter = 0 # counts the number of calls to "get_path"        
         self.epoch = 0
         # self.final_epoch = args.num_iter - 1
-
-        if clip_model is None:
-            self.clip_model, self.clip_preprocess = clip.load(self.saliency_clip_model, device=self.device, jit=False)
-            self.clip_model.eval().to(self.device)
-        else:
-            assert clip_preprocess is not None
-            self.clip_model = clip_model
-            self.clip_preprocess = clip_preprocess
-
-        assert self.saliency_model in ["dino", "clip"]
-        
+        self.clip_model = None
+        self.clip_preprocess = None
         self.dino_model = None
-        if self.saliency_model == "dino":
-            if dino_model is None:
-                self.dino_model = torch.hub.load('facebookresearch/dino:main', 'dino_vits8').eval().to(self.device)
+        
+        if args.init_mode != 'warmstart':
+            if clip_model is None:
+                self.clip_model, self.clip_preprocess = clip.load(self.saliency_clip_model, device=self.device, jit=False)
+                self.clip_model.eval().to(self.device)
             else:
-                self.dino_model = dino_model
+                assert clip_preprocess is not None
+                self.clip_model = clip_model
+                self.clip_preprocess = clip_preprocess
+
+            assert self.saliency_model in ["dino", "clip"]
+            
+            self.dino_model = None
+            if self.saliency_model == "dino":
+                if dino_model is None:
+                    self.dino_model = torch.hub.load('facebookresearch/dino:main', 'dino_vits8').eval().to(self.device)
+                else:
+                    self.dino_model = dino_model
         
 
     def init_image(self, target_im=None, mask=None, stage=0, randomize_colors=False, attn_colors=False, attn_colors_stroke_sigma=-1.0, path_dict=None, return_rgba=False, new_num_strokes=None, new_width=None, init_settings=('lbs', 0), log_path=None):
+        # init_settings: ('sam', sam_init_num) or ('lbs', 0) or ('warmstart', 0)
+        # if warmstarting, then set path_dict to the warmstarted points
+        
         if new_num_strokes is not None:
             self.num_paths = new_num_strokes
             self.strokes_per_stage = self.num_paths
@@ -100,58 +107,64 @@ class Painter(torch.nn.Module):
         self.attention_map = self.set_attention_map() if self.attention_init else None
         self.thresh = self.set_attention_threshold_map() if self.attention_init else None
 
+        init_mode, init_params = init_settings
+
         # start ------------------------------------------
-
-        init_mode, sam_init_num = init_settings
-        inds_init_size = len(self.inds)
-        pts_to_be_added_grouped, pts_to_be_added_sorted = sam.add_init_points_by_sam(target_im, self.device, sam_init_num, self.thresh, self.inds)
-        pts_to_be_added_sorted = np.array(pts_to_be_added_sorted)
-
-        # ------------------------------------------
-        
-        outlier_indices = sam.get_outlier_indices(target_im, pts_to_be_added_sorted)
-        pts_to_be_added_sorted = np.delete(pts_to_be_added_sorted, outlier_indices, axis=0)
-        sam_pts_size = len(pts_to_be_added_sorted)
-
-        outlier_indices = sam.get_outlier_indices(target_im, self.inds)
-        inds_outlier_size = len(outlier_indices)
-
-        # ------------------------------------------
-
-        if init_mode == 'sam':
-            # Warning: there may be outlier strokes if using SAM-first mode
-            if sam_pts_size >= inds_init_size:
-                self.inds = np.array(pts_to_be_added_sorted[:inds_init_size])
-            else:
-                temp_inds = np.array(self.inds)
-                if inds_outlier_size > 0:
-                    outlier_to_keep = temp_inds[outlier_indices]
-                    temp_inds = np.delete(temp_inds, outlier_indices, axis=0)
-                    temp_inds = np.concatenate((temp_inds, outlier_to_keep))
-                self.inds = np.array(pts_to_be_added_sorted)
-                temp_size_ = inds_init_size - sam_pts_size
-                self.inds = np.concatenate((self.inds, temp_inds[:temp_size_]))
+        if init_mode == 'warmstart':
+            self.inds = None
+            self.inds_normalised = None
         else:
-            if sam_pts_size >= inds_outlier_size:
-                if inds_outlier_size > 0:
-                    self.inds = np.delete(self.inds, outlier_indices, axis=0)
-                    self.inds = np.concatenate((self.inds, pts_to_be_added_sorted[:inds_outlier_size]))
+            sam_init_num = init_params
+            # init_mode, sam_init_num = init_settings
+            inds_init_size = len(self.inds)
+            pts_to_be_added_grouped, pts_to_be_added_sorted = sam.add_init_points_by_sam(target_im, self.device, sam_init_num, self.thresh, self.inds)
+            pts_to_be_added_sorted = np.array(pts_to_be_added_sorted)
+
+            # ------------------------------------------
+            
+            outlier_indices = sam.get_outlier_indices(target_im, pts_to_be_added_sorted)
+            pts_to_be_added_sorted = np.delete(pts_to_be_added_sorted, outlier_indices, axis=0)
+            sam_pts_size = len(pts_to_be_added_sorted)
+
+            outlier_indices = sam.get_outlier_indices(target_im, self.inds)
+            inds_outlier_size = len(outlier_indices)
+
+            # ------------------------------------------
+
+            if init_mode == 'sam':
+                # Warning: there may be outlier strokes if using SAM-first mode
+                if sam_pts_size >= inds_init_size:
+                    self.inds = np.array(pts_to_be_added_sorted[:inds_init_size])
+                else:
+                    temp_inds = np.array(self.inds)
+                    if inds_outlier_size > 0:
+                        outlier_to_keep = temp_inds[outlier_indices]
+                        temp_inds = np.delete(temp_inds, outlier_indices, axis=0)
+                        temp_inds = np.concatenate((temp_inds, outlier_to_keep))
+                    self.inds = np.array(pts_to_be_added_sorted)
+                    temp_size_ = inds_init_size - sam_pts_size
+                    self.inds = np.concatenate((self.inds, temp_inds[:temp_size_]))
             else:
-                self.inds = np.delete(self.inds, outlier_indices, axis=0)
-                self.inds = np.concatenate((self.inds, pts_to_be_added_sorted[:sam_pts_size]))
-                size_to_add = inds_init_size - len(self.inds)
-                extra_pts_to_add = []
-                for k in range(size_to_add):
-                    extra_pts_to_add.append(sam.random_point_around(self.inds[k % len(self.inds)]))
-                extra_pts_to_add = np.array(extra_pts_to_add)
-                self.inds = np.concatenate((self.inds, extra_pts_to_add))
+                if sam_pts_size >= inds_outlier_size:
+                    if inds_outlier_size > 0:
+                        self.inds = np.delete(self.inds, outlier_indices, axis=0)
+                        self.inds = np.concatenate((self.inds, pts_to_be_added_sorted[:inds_outlier_size]))
+                else:
+                    self.inds = np.delete(self.inds, outlier_indices, axis=0)
+                    self.inds = np.concatenate((self.inds, pts_to_be_added_sorted[:sam_pts_size]))
+                    size_to_add = inds_init_size - len(self.inds)
+                    extra_pts_to_add = []
+                    for k in range(size_to_add):
+                        extra_pts_to_add.append(sam.random_point_around(self.inds[k % len(self.inds)]))
+                    extra_pts_to_add = np.array(extra_pts_to_add)
+                    self.inds = np.concatenate((self.inds, extra_pts_to_add))
 
-        # ------------------------------------------
+            # ------------------------------------------
 
-        self.inds_normalised = np.zeros(self.inds.shape)
-        self.inds_normalised[:, 0] = self.inds[:, 1] / self.canvas_width
-        self.inds_normalised[:, 1] = self.inds[:, 0] / self.canvas_height
-        self.inds_normalised = self.inds_normalised.tolist()
+            self.inds_normalised = np.zeros(self.inds.shape)
+            self.inds_normalised[:, 0] = self.inds[:, 1] / self.canvas_width
+            self.inds_normalised[:, 1] = self.inds[:, 0] / self.canvas_height
+            self.inds_normalised = self.inds_normalised.tolist()
 
         # generate logs for stroke init
         # if log_path is None:
@@ -199,7 +212,7 @@ class Painter(torch.nn.Module):
                                                         stroke_color = stroke_color)
                     self.shape_groups.append(path_group)        
                 self.optimize_flag = [True for i in range(len(self.shapes))]
-        else:
+        else: # Path Dict is already where input points can be passed in
             path_dict = self._deserialize_path_dict(path_dict)
 
             for log_idx, paths in path_dict.items():

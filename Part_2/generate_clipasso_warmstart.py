@@ -22,33 +22,6 @@ from tqdm import tqdm
 import subprocess as sp
 import svgwrite
 from xml.dom import minidom
-import os
-import time
-import pickle
-from pathlib import Path
-import cairosvg
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from PIL import Image
-import io
-from paths import DirectoryPathManager
-import paths
-import torch
-import torch.optim as optim
-from torch.utils.data import DataLoader
-import paths
-from datasets import get_dataset
-from models.LBS import SketchModel
-from models.clip_loss import Loss as CLIPLoss
-from loss import LBS_loss_fn
-
-import argparser
-from utils.sketch_utils import *
-from utils.shared import args, logger, update_args, update_config
-from utils.shared import stroke_config as config
-
-import warnings
-from utils.my_utils import *
 
 parser = argparse.ArgumentParser()
 
@@ -110,8 +83,6 @@ parser.add_argument("--clip_model_name", type=str, default="RN101")
 parser.add_argument("--clip_fc_loss_weight", type=float, default=0.1)
 parser.add_argument("--clip_text_guide", type=float, default=0)
 parser.add_argument("--text_target", type=str, default="none")
-
-parser.add_argument("--freehand_weight_path", type=str, default=None)
 
 
 abs_path = os.path.abspath(os.getcwd())
@@ -180,13 +151,6 @@ class DataGenerator(nn.Module):
                 clip_preprocess=renderers[0].clip_preprocess,
                 dino_model=renderers[0].dino_model
             ))
-
-        if args.init_mode == 'warmstart':
-            checkpoint = torch.load(args.freehand_weight_path, map_location=args.device)
-            self.freehand_model = SketchModel()
-            self.freehand_model = self.freehand_model.to(args.device)
-            self.freehand_model.load_state_dict(checkpoint)
-            self.freehand_model.eval()
 
         self.renderers = nn.ModuleList(renderers)
         self.criterion = Loss(args)
@@ -344,65 +308,46 @@ class DataGenerator(nn.Module):
         stroke_width_fg = self.args.width
         stroke_width_bg = self.args.width_bg
 
-        # TODO set warmstart path dict here!
-        input_path_dicts = None
-        # print(image.shape)
-        if self.args.init_mode == 'warmstart':
-            print("warm starting")
-            with torch.no_grad():
-                # in test_model, input image is 128x128, which is set by TODO args.image_size probably. Here, the image in the dataset is 224x224
-                output = self.freehand_model(image) 
-            input_path_dicts = []
-            for i in range(len(output['stroke']['position'])):
-                stroke = output['stroke']['position'][i]
-                stroke[:, 0] = stroke[:, 0] 
-                stroke[:, 1] = stroke[:, 1] 
-                input_path_dicts.append({
-                    i: {
-                        'pos': stroke, # 30x8
-                        'color': np.zeros((stroke.shape[0], 3))
-                        }
-                    }) # 30x30 
         # NOTE: generate label data in vector graphics format here, mask is unused
-        # save the generated svg
-        path_dicts = self._generate(args, foreground, image_path, mask, self.args.num_iter, num_strokes_fg, stroke_width_fg, False, use_tqdm=use_tqdm, path_dicts=input_path_dicts)
+        # TODO set warmstart path dict here!
+        path_dicts = None
+        if self.args.init_mode == 'warmstart':
+            model = freehand_model()
+            output = model(image_path, gen_parameters)
+            path_dicts = output['path_dicts']
+        path_dicts = self._generate(args, foreground, image_path, mask, self.args.num_iter, num_strokes_fg, stroke_width_fg, False, use_tqdm=use_tqdm)
         new_path_dicts = []
         for item1, item2 in zip(path_dicts, image_path):
             new_item = {'iterations': item1, 'img_path': item2}
             new_path_dicts.append(new_item)
         path_dicts = new_path_dicts
 
+        # NOTE: we return here, mask_areas is unused
+        if not self.args.enable_color:
+            path_dicts = dict(zip(sample_names, path_dicts))
+            return path_dicts, mask_areas
+
+        color_dicts = self._generate(args, foreground, image_path, mask, 0, None, stroke_width_fg, True, path_dicts=path_dicts, use_tqdm=use_tqdm)
+        for paths, colors in zip(path_dicts, color_dicts):
+            for step in self.args.key_steps:
+                step = str(step)
+                paths[step]['color'] = colors[step]['color']
+
+        if num_strokes_bg <= 0:
+            path_dicts = dict(zip(sample_names, path_dicts))
+            return path_dicts, mask_areas
+        
+        path_dicts_bg = self._generate(args, background, image_path, 1 - mask, 0, num_strokes_bg, stroke_width_bg, True, use_tqdm=use_tqdm)
+        for paths, paths_bg in zip(path_dicts, path_dicts_bg):
+            for step in self.args.key_steps:
+                step = str(step)
+                paths[step]['pos'] = np.concatenate([paths[step]['pos'], paths_bg[step]['pos']], axis=0)
+                paths[step]['color'] = np.concatenate([paths[step]['color'], paths_bg[step]['color']], axis=0)
+                if 'radius' in paths[step]:
+                    paths[step]['radius'] = np.concatenate([paths[step]['radius'], paths_bg[step]['radius']], axis=0)
+
         path_dicts = dict(zip(sample_names, path_dicts))
         return path_dicts, mask_areas
-
-        # ===========================================
-        # Default parameters: enable_color is set to false! only the first _generate is used and dont need to worry about the rest
-        # NOTE: we return here, mask_areas is unused
-        # if not self.args.enable_color:
-        #     path_dicts = dict(zip(sample_names, path_dicts))
-        #     return path_dicts, mask_areas
-
-        # color_dicts = self._generate(args, foreground, image_path, mask, 0, None, stroke_width_fg, True, path_dicts=path_dicts, use_tqdm=use_tqdm)
-        # for paths, colors in zip(path_dicts, color_dicts):
-        #     for step in self.args.key_steps:
-        #         step = str(step)
-        #         paths[step]['color'] = colors[step]['color']
-
-        # if num_strokes_bg <= 0:
-        #     path_dicts = dict(zip(sample_names, path_dicts))
-        #     return path_dicts, mask_areas
-        
-        # path_dicts_bg = self._generate(args, background, image_path, 1 - mask, 0, num_strokes_bg, stroke_width_bg, True, use_tqdm=use_tqdm)
-        # for paths, paths_bg in zip(path_dicts, path_dicts_bg):
-        #     for step in self.args.key_steps:
-        #         step = str(step)
-        #         paths[step]['pos'] = np.concatenate([paths[step]['pos'], paths_bg[step]['pos']], axis=0)
-        #         paths[step]['color'] = np.concatenate([paths[step]['color'], paths_bg[step]['color']], axis=0)
-        #         if 'radius' in paths[step]:
-        #             paths[step]['radius'] = np.concatenate([paths[step]['radius'], paths_bg[step]['radius']], axis=0)
-
-        # path_dicts = dict(zip(sample_names, path_dicts))
-        # return path_dicts, mask_areas
     
     def generate_for_dataset(self, args, dataloader, use_tqdm=False, track_time=False):
         path_dicts = {}
@@ -437,8 +382,6 @@ class DataGenerator(nn.Module):
             if self.args.save_svgs:
                 for i, (sample_name, sample_paths) in enumerate(batch_path_dicts.items()):
                     self.save_svgs(sample_paths['iterations'], sample_paths['img_path'])
-                    # TODO save svg of input path dict here
-                    self.save_svgs
 
             if track_time:
                 generated_samples += image.size(0)
@@ -516,14 +459,6 @@ def main(args=None):
     args.use_gpu = not args.no_cuda
     args.image_scale = args.image_size
     args.color_lr = 0.01
-
-    args.image_num_channel = 3
-    stroke_config = argparser.get_stroke_config(args)
-
-    update_args(args)
-    update_config(stroke_config)
-
-    print("enable_color", args.enable_color)
 
     dataset = get_dataset(args)
     print('--- batch_size:', args.batch_size)
