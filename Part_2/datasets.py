@@ -19,29 +19,30 @@ except ModuleNotFoundError:
 from utils.sketch_utils import *
 from utils.my_utils import *
 
+from paths import DirectoryPathManager
 
 class SketchDataset(Dataset):
-    def __init__(self, args, sketch_root, data_root, transform, augment=False, test_only=False):
+    def __init__(self, args, sketch_data_file, data_root, transform, contour_root, augment=False, test_only=False, num_test=100):
         self.paths_dict = {}
         self.augment = augment
         self.transform = transform
+        self.contour_root = contour_root
         self.label_data_source = args.label_data_source
         self.test_only = test_only
 
         if test_only:
             self.test_imgs = []
-            for root, dirs, files in os.walk(data_root):
-                for filename in files:
-                    if not filename.lower().endswith(('.png', '.jpg')):
-                        continue
-                    filepath = os.path.join(root, filename)
-                    self.test_imgs.append(filepath)
+            path_manager = DirectoryPathManager(base_path=data_root + "/", base_unit_is_file=True)
+            for file in path_manager.file_paths[:num_test]:
+                if file.extension == ".png" or file.extension == ".jpg":
+                    self.test_imgs.append(file.as_absolute())
             return
 
         if self.label_data_source == 'init_clipasso':
             paths_dict_ = get_path_dict(args, data_root)
         else:
-            sketch_dir = os.path.join(sketch_root, f"path.pkl")
+            sketch_dir = sketch_data_file
+            # sketch_dir = os.path.join(sketch_data_file, f"path.pkl")
             with open(sketch_dir, "rb") as f:
                 paths_dict_ = pickle.load(f)
 
@@ -75,7 +76,7 @@ class SketchDataset(Dataset):
         res_pos = torch.stack(pos_list, dim=0)
 
         # NOTE: seed set to be 0 by default
-        img_path = self.paths_dict[index][0]['img_path']
+        img_path = self.contour_root + self.paths_dict[index][0]['img_path']
         image = Image.open(img_path).convert('RGB')
         res_img = self.transform(image)
 
@@ -88,9 +89,13 @@ class SketchDataset(Dataset):
 
 
 def get_dataset(args, test_only=False):
-    sketch_root = os.path.join('logs', args.dataset)
     data_root = args.data_root
-    test_root = os.path.join(args.data_root, 'test')
+    # sketch_root = os.path.join(data_root, 'logs', args.dataset)
+    sketch_data_file = os.path.join(data_root, args.sketch_data_file)
+    contour_root = os.path.join(data_root, args.contour_dir)
+    # data root is only for testing
+    test_root = os.path.join(args.data_root, 'test_imgs/')
+
     image_shape = (3, args.custom_transforms_size, args.custom_transforms_size)
 
     transform = transforms.Compose([
@@ -99,21 +104,31 @@ def get_dataset(args, test_only=False):
     ])
 
     test_dataset = SketchDataset(
-        args,
-        None,
-        test_root,
-        transform,
-        test_only=True
+        args=args,
+        sketch_data_file=None,
+        data_root=test_root,
+        transform=transform,
+        test_only=True,
+        contour_root=contour_root
     )
 
     if test_only:
-        return test_dataset, image_shape
+        train_dataset = SketchDataset(
+            args=args,
+            sketch_data_file=None,
+            data_root=contour_root + "0001/",
+            transform=transform,
+            test_only=True,
+            contour_root=contour_root
+        )
+        return train_dataset, test_dataset, image_shape
 
     train_dataset = SketchDataset(
-        args,
-        sketch_root,
-        data_root,
-        transform,
+        args=args,
+        sketch_data_file=sketch_data_file,
+        data_root=data_root,
+        transform=transform,
+        contour_root=contour_root
     )
 
     if args.train_val_split_ratio > 0:

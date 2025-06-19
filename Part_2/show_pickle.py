@@ -34,6 +34,7 @@ for path in pickles[:5]:
         fig, axs = plt.subplots(2)
         # print(x["0_0"].keys())
         image_name = x[key]["img_path"]
+        print(image_name)
         image_path = image_root + image_name
         ax = axs[0]
         image = mpimg.imread(image_path)

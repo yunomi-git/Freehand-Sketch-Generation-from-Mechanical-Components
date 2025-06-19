@@ -63,7 +63,10 @@ def parse_arguments(argslist=None):
     parser.add_argument('--lbd_e', default=1.0, type=float, help='weight for L_embed')
     parser.add_argument('--lbd_h', default=0.1, type=float, help='weight for L_hausdorff')
     parser.add_argument('--epochs', default=500, type=int)
-    parser.add_argument('--dataset', type=str, default='my_data')
+
+    parser.add_argument('--sketch_data_file', type=str, default='my_data', help='Pickle file where svg sketches are stored. Looks at args.data_root + args.sketch_data_file')
+    parser.add_argument('--dataset', type=str, default='my_data', help='Where svg sketches are stored. Looks at args.data_root + "log" + args.dataset. not currently used. my_data.yml sets the save folder')
+    parser.add_argument('--contour_dir', type=str, default=None, help='Where contours are stored. Looks at args.data_root + args.contour_dir')
 
     parser.add_argument('--n_hidden', default=512, type=int)
     parser.add_argument('--n_embedding', default=512, type=int)
@@ -118,7 +121,7 @@ def parse_arguments(argslist=None):
     parser.add_argument('--key_steps', type=int, nargs='+',
                         default=[0, 50, 100, 200, 400, 700, 1000, 1500, 2000])
     parser.add_argument('--label_data_source', type=str, default='pkl', help='init_clipasso or pkl')
-    parser.add_argument("--train_val_split_ratio", type=float, default=0)
+    parser.add_argument("--train_val_split_ratio", type=float, default=0.15)
     parser.add_argument("--testset_log", type=int, default=1)
     parser.add_argument("--test_weight_path", type=str, default='')
 
